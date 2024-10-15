@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cmath>
 #include <numbers>
 #include <ratio>
 #include "main.h"
@@ -85,50 +86,67 @@ void opcontrol() {
     using std::chrono::duration_cast;
     using std::chrono::high_resolution_clock;
 
-    // TODO: does v direction matter?
+    // Slight turn--works, little bit innacurate
     QuinticHermite qh {
         {0, 0},
-        {10, 0},
-        {48, 0},
-        {-10, 0},
+        {30, 0},
+        {48, 24},
+        {30, 30},
     };
 
+    // works with friction=1, very slow
+    // QuinticHermite qh {
+    //     {0, 0},
+    //     {30, 30},
+    //     {48, 0},
+    //     {30, 30},
+    // };
+
+    // QuinticHermite qh {
+    //     {0, 0},
+    //     {10, 0},
+    //     {48, 0},
+    //     {10, 0},
+    // };
+
     // TODO: test friction coeff
-    Constraints constraints {100, 100, 100, 12.625, 99999};
+    Constraints constraints {100, 100, 100, 12.625, 10};
     Trajectory trajectory {qh, constraints, 0.1};
 
     auto t1 = high_resolution_clock::now();
     // TODO: startVel needs to be so high?
-    trajectory.generate(5, 0.01, 0, 0);
+    trajectory.generate(0.01, 0.01, 0, 0);
     auto t2 = high_resolution_clock::now();
     duration<double, std::milli> dt = t2 - t1;
     std::cout << "TIME: " << dt.count() << "\n\n";
 
-    // std::cout << trajectory.vels.size() << " " << trajectory.angularVels.size() << "\n\n";
-    // for (int i = 0; i < trajectory.vels.size(); i++) { std::cout << trajectory.vels[i] << "\n"; }
-    // for (int i = 0; i < trajectory.angularVels.size(); i++) { std::cout << trajectory.angularVels[i] << "\n"; }
+    std::cout << trajectory.vels.size() << " " << trajectory.angularVels.size() << "\n\n";
+    for (int i = 0; i < trajectory.vels.size(); i++) { std::cout << trajectory.vels[i] << "\n"; }
+    for (int i = 0; i < trajectory.angularVels.size(); i++) { std::cout << trajectory.angularVels[i] << "\n"; }
 
     pros::Controller master(pros::E_CONTROLLER_MASTER);
     // pros::MotorGroup left_mg({-1, -8, -10}, pros::v5::MotorGears::blue);
     // pros::MotorGroup right_mg({3, 5, 6}, pros::v5::MotorGears::blue);
 
-    pros::MotorGroup left_mg({1, 8, 10}, pros::v5::MotorGears::blue);
-    pros::MotorGroup right_mg({-3, -5, -6}, pros::v5::MotorGears::blue);
+    pros::MotorGroup left_mg({-13, -17}, pros::v5::MotorGears::blue);
+    pros::MotorGroup right_mg({11, 18}, pros::v5::MotorGears::blue);
+    left_mg.set_brake_mode_all(pros::MotorBrake::brake);
+    right_mg.set_brake_mode_all(pros::MotorBrake::brake);
     double d = 0;
 
     while (true) {
-        pros::Motor left(1, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
-        pros::Motor right(-6, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
+        pros::Motor left(-13, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
+        pros::Motor right(11, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
         double gearRatio = 36.0 / 48.0;
-        double wheelDiameter = 3.25;
+        double wheelDiameter = 2.75;
         double dl = left.get_position() / 360 * std::numbers::pi * wheelDiameter * gearRatio;
         double dr = right.get_position() / 360 * std::numbers::pi * wheelDiameter * gearRatio;
         d = (dl + dr) / 2;
-        std::cout << "d: " << d << "\n";
         pros::lcd::print(1, "d: %lf", d);
 
-        int i = d / trajectory.step;
-        if (i > trajectory.vels.size()) {
+        int i = std::ceil(d / trajectory.step);
+        // std::cout << "d: " << d << " i: " << i << "\n";
+        if (i >= trajectory.vels.size()) {
             left_mg.move(0);
             right_mg.move(0);
         } else {

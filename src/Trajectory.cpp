@@ -35,8 +35,7 @@ void Trajectory::generate(double startVel, double endVel, double startAngularVel
     vel = endVel;
     prevAngularVel = endAngularVel;
 
-    // TODO: fix endVel/endAngularVel
-    vels.push_back(0);
+    vels.push_back(vel);
     angularVels.push_back(0);
 
     int i = vels.size() - 1;
@@ -53,7 +52,7 @@ void Trajectory::generate(double startVel, double endVel, double startAngularVel
         double curvature = angularVel / vel;
         double angularAcc = (angularVel - prevAngularVel) * (vel / step);
         prevAngularVel = angularVel;
-        double maxAcc = constraints.maxAcc - std::abs(angularAcc * constraints.trackWidth / 2);
+        double maxAcc = constraints.maxDec - std::abs(angularAcc * constraints.trackWidth / 2);
         vel = std::min(constraints.maxSpeed(curvature), std::sqrt(vel * vel + 2 * maxAcc * step));
     }
 }

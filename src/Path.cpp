@@ -1,7 +1,6 @@
 #include "Path.hpp"
 
 // TODO: maybe don't use row vector?
-// TODO: header guards?
 QuinticHermite::QuinticHermite(Vec2 p0, Vec2 v0, Vec2 a0, Vec2 p1, Vec2 v1, Vec2 a1) {
     points << p0, v0, a0, p1, v1, a1;
     pointCoeffs =
