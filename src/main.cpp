@@ -85,7 +85,6 @@ void opcontrol() {
     using std::chrono::duration_cast;
     using std::chrono::high_resolution_clock;
 
-    // Slight turn--works, little bit innacurate
     // QuinticHermite qh {
     //     {0, 0},
     //     {30, 0},
@@ -93,7 +92,6 @@ void opcontrol() {
     //     {30, 30},
     // };
 
-    // works with friction=1, very slow
     // QuinticHermite qh {
     //     {0, 0},
     //     {30, 30},
@@ -104,11 +102,13 @@ void opcontrol() {
     QuinticHermite qh {
         {0, 0},
         {10, 0},
-        {48, 0},
+        {72, 0},
         {10, 0},
     };
 
-    Constraints constraints {100, 100, 100, 12.625, 10};
+    // TODO: decel should be lower?
+    // TODO: ff should have less lag?
+    Constraints constraints {100, 100, 100, 12.625, 1};
     Trajectory trajectory {qh, constraints, 0.1};
 
     auto t1 = high_resolution_clock::now();
@@ -160,6 +160,6 @@ void opcontrol() {
         }
         // TODO: decrease update?
         // TODO: derivative scaling inaccurate, length of vels is too big
-        pros::delay(20); // Run for 20 ms then update
+        pros::delay(10); // Run for 20 ms then update
     }
 }
