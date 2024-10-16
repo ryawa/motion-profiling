@@ -1,5 +1,4 @@
 #include <chrono>
-#include <cmath>
 #include <numbers>
 #include <ratio>
 #include "main.h"
@@ -87,12 +86,12 @@ void opcontrol() {
     using std::chrono::high_resolution_clock;
 
     // Slight turn--works, little bit innacurate
-    QuinticHermite qh {
-        {0, 0},
-        {30, 0},
-        {48, 24},
-        {30, 30},
-    };
+    // QuinticHermite qh {
+    //     {0, 0},
+    //     {30, 0},
+    //     {48, 24},
+    //     {30, 30},
+    // };
 
     // works with friction=1, very slow
     // QuinticHermite qh {
@@ -102,20 +101,18 @@ void opcontrol() {
     //     {30, 30},
     // };
 
-    // QuinticHermite qh {
-    //     {0, 0},
-    //     {10, 0},
-    //     {48, 0},
-    //     {10, 0},
-    // };
+    QuinticHermite qh {
+        {0, 0},
+        {10, 0},
+        {48, 0},
+        {10, 0},
+    };
 
-    // TODO: test friction coeff
     Constraints constraints {100, 100, 100, 12.625, 10};
     Trajectory trajectory {qh, constraints, 0.1};
 
     auto t1 = high_resolution_clock::now();
-    // TODO: startVel needs to be so high?
-    trajectory.generate(0.01, 0.01, 0, 0);
+    trajectory.generate(1, 0, 0, 0);
     auto t2 = high_resolution_clock::now();
     duration<double, std::milli> dt = t2 - t1;
     std::cout << "TIME: " << dt.count() << "\n\n";
@@ -130,8 +127,8 @@ void opcontrol() {
 
     pros::MotorGroup left_mg({-13, -17}, pros::v5::MotorGears::blue);
     pros::MotorGroup right_mg({11, 18}, pros::v5::MotorGears::blue);
-    left_mg.set_brake_mode_all(pros::MotorBrake::brake);
-    right_mg.set_brake_mode_all(pros::MotorBrake::brake);
+    left_mg.set_brake_mode_all(pros::MotorBrake::hold);
+    right_mg.set_brake_mode_all(pros::MotorBrake::hold);
     double d = 0;
 
     while (true) {
@@ -144,11 +141,11 @@ void opcontrol() {
         d = (dl + dr) / 2;
         pros::lcd::print(1, "d: %lf", d);
 
-        int i = std::ceil(d / trajectory.step);
+        int i = d / trajectory.step;
         // std::cout << "d: " << d << " i: " << i << "\n";
         if (i >= trajectory.vels.size()) {
-            left_mg.move(0);
-            right_mg.move(0);
+            left_mg.move_velocity(0);
+            right_mg.move_velocity(0);
         } else {
             double vel = trajectory.vels[i];
             double angularVel = trajectory.angularVels[i];
@@ -161,7 +158,8 @@ void opcontrol() {
             right_mg.move_velocity(rightWheel);
             std::cout << "leftWheel: " << leftWheel << " " << "rightWheel: " << rightWheel << "\n";
         }
-
+        // TODO: decrease update?
+        // TODO: derivative scaling inaccurate, length of vels is too big
         pros::delay(20); // Run for 20 ms then update
     }
 }

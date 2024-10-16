@@ -18,12 +18,12 @@ void Trajectory::generate(double startVel, double endVel, double startAngularVel
         t += step / std::hypot(d[0], d[1]);
         d = path.d(t);
         double nextTheta = std::atan2(d[1], d[0]);
-        double angularVel = (nextTheta - theta) * (vel / step);
+        double curvature = (nextTheta - theta) / step;
+        double angularVel = curvature * vel;
         theta = nextTheta;
         vels.push_back(vel);
         angularVels.push_back(angularVel);
 
-        double curvature = angularVel / vel;
         double angularAcc = (angularVel - prevAngularVel) * (vel / step);
         prevAngularVel = angularVel;
         double maxAcc = constraints.maxAcc - std::abs(angularAcc * constraints.trackWidth / 2);
@@ -43,13 +43,13 @@ void Trajectory::generate(double startVel, double endVel, double startAngularVel
         t -= step / std::hypot(d[0], d[1]);
         d = path.d(t);
         double nextTheta = std::atan2(d[1], d[0]);
-        double angularVel = -(nextTheta - theta) * (vel / step);
+        double curvature = -(nextTheta - theta) / step;
+        double angularVel = curvature * vel;
         theta = nextTheta;
         if (std::abs(vel) < std::abs(vels[i])) { vels[i] = vel; }
         if (std::abs(angularVel) < std::abs(angularVels[i])) { angularVels[i] = angularVel; }
         i--;
 
-        double curvature = angularVel / vel;
         double angularAcc = (angularVel - prevAngularVel) * (vel / step);
         prevAngularVel = angularVel;
         double maxAcc = constraints.maxDec - std::abs(angularAcc * constraints.trackWidth / 2);
