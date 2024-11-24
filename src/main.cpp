@@ -1,85 +1,44 @@
 #include <chrono>
+#include <cstdint>
 #include <numbers>
 #include <ratio>
+#include <iostream>
 #include "main.h"
+#include "lemlib/api.hpp"
 #include "Eigen/Dense"
 #include "Constraints.hpp"
 #include "Path.hpp"
 #include "Trajectory.hpp"
 
-/**
- * A callback function for LLEMU's center button.
- *
- * When this callback is fired, it will toggle line 2 of the LCD text between
- * "I was pressed!" and nothing.
- */
-void on_center_button() {
-    static bool pressed = false;
-    pressed = !pressed;
-    if (pressed) {
-        pros::lcd::set_text(2, "I was pressed!");
-    } else {
-        pros::lcd::clear_line(2);
+template <typename T> void log_helper(const T& value) { std::cout << value; }
+
+template <typename T, typename U, typename... Args> void log_helper(const T& key, const U& value, const Args&... args) {
+    std::cout << key << "=" << value;
+    if constexpr (sizeof...(args) > 0) {
+        std::cout << ",";
+        log_helper(args...);
     }
 }
 
-/**
- * Runs initialization code. This occurs as soon as the program is started.
- *
- * All other competition modes are blocked by initialize; it is recommended
- * to keep execution time for this mode under a few seconds.
- */
+template <typename... Args> void log(const Args&... args) {
+    std::cout << "VEX_DASHBOARD_BEGIN" << pros::millis() << ",";
+    log_helper(args...);
+    std::cout << "VEX_DASHBOARD_END" << std::flush;
+}
+
+pros::Rotation verticalEnc(-15);
+
 void initialize() {
     pros::lcd::initialize();
     pros::lcd::set_text(1, "Hello PROS User!");
-
-    pros::lcd::register_btn1_cb(on_center_button);
 }
 
-/**
- * Runs while the robot is in the disabled state of Field Management System or
- * the VEX Competition Switch, following either autonomous or opcontrol. When
- * the robot is enabled, this task will exit.
- */
 void disabled() {}
 
-/**
- * Runs after initialize(), and before autonomous when connected to the Field
- * Management System or the VEX Competition Switch. This is intended for
- * competition-specific initialization routines, such as an autonomous selector
- * on the LCD.
- *
- * This task will exit when the robot is enabled and autonomous or opcontrol
- * starts.
- */
 void competition_initialize() {}
 
-/**
- * Runs the user autonomous code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the autonomous
- * mode. Alternatively, this function may be called in initialize or opcontrol
- * for non-competition testing purposes.
- *
- * If the robot is disabled or communications is lost, the autonomous task
- * will be stopped. Re-enabling the robot will restart the task, not re-start it
- * from where it left off.
- */
 void autonomous() {}
 
-/**
- * Runs the operator control code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the operator
- * control mode.
- *
- * If no competition control is connected, this function will run immediately
- * following initialize().
- *
- * If the robot is disabled or communications is lost, the
- * operator control task will be stopped. Re-enabling the robot will restart the
- * task, not resume it from where it left off.
- */
 void opcontrol() {
     using std::chrono::duration;
     using std::chrono::duration_cast;
@@ -88,7 +47,7 @@ void opcontrol() {
     // QuinticHermite qh {
     //     {0, 0},
     //     {30, 0},
-    //     {48, 24},
+    //     {72, 24},
     //     {30, 30},
     // };
 
@@ -106,60 +65,91 @@ void opcontrol() {
         {10, 0},
     };
 
-    // TODO: decel should be lower?
-    // TODO: ff should have less lag?
-    Constraints constraints {100, 100, 100, 12.625, 1};
-    Trajectory trajectory {qh, constraints, 0.1};
+    // TODO: Tune constraints
+    Constraints constraints {100, 200, 200, 12.1875, 1};
+    // TODO: Step?
+    Trajectory trajectory {qh, constraints, 1};
 
     auto t1 = high_resolution_clock::now();
-    trajectory.generate(1, 0, 0, 0);
+    trajectory.generate(3, 0, 0, 0);
     auto t2 = high_resolution_clock::now();
     duration<double, std::milli> dt = t2 - t1;
     std::cout << "TIME: " << dt.count() << "\n\n";
 
-    std::cout << trajectory.vels.size() << " " << trajectory.angularVels.size() << "\n\n";
-    for (int i = 0; i < trajectory.vels.size(); i++) { std::cout << trajectory.vels[i] << "\n"; }
-    for (int i = 0; i < trajectory.angularVels.size(); i++) { std::cout << trajectory.angularVels[i] << "\n"; }
+    std::cout << trajectory.vels.size() << " " << trajectory.angularVels.size() << " " << trajectory.accels.size()
+              << " " << trajectory.angularAccels.size() << "\n\n";
+
+    for (int i = 0; i < trajectory.vels.size(); i++) { std::cout << trajectory.vels[i] << " "; }
+    std::cout << "\n\n";
+    for (int i = 0; i < trajectory.angularVels.size(); i++) { std::cout << trajectory.angularVels[i] << " "; }
+    std::cout << "\n\n";
+    for (int i = 0; i < trajectory.accels.size(); i++) { std::cout << trajectory.accels[i] << " "; }
+    std::cout << "\n\n";
+    for (int i = 0; i < trajectory.angularAccels.size(); i++) { std::cout << trajectory.angularAccels[i] << " "; }
+    std::cout << "\n\n";
 
     pros::Controller master(pros::E_CONTROLLER_MASTER);
-    // pros::MotorGroup left_mg({-1, -8, -10}, pros::v5::MotorGears::blue);
-    // pros::MotorGroup right_mg({3, 5, 6}, pros::v5::MotorGears::blue);
-
-    pros::MotorGroup left_mg({-13, -17}, pros::v5::MotorGears::blue);
-    pros::MotorGroup right_mg({11, 18}, pros::v5::MotorGears::blue);
+    pros::MotorGroup left_mg({-19, -18, -16}, pros::v5::MotorGears::blue);
+    pros::MotorGroup right_mg({6, 10, 2}, pros::v5::MotorGears::blue);
     left_mg.set_brake_mode_all(pros::MotorBrake::hold);
     right_mg.set_brake_mode_all(pros::MotorBrake::hold);
     double d = 0;
 
+    // TODO: Tune PID
+    lemlib::PID leftPid(0, 0, 0);
+    lemlib::PID rightPid(0, 0, 0);
+    double leftPidSum = 0.0;
+    double rightPidSum = 0.0;
+
     while (true) {
-        pros::Motor left(-13, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
-        pros::Motor right(11, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
+        pros::Motor left(-19, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
+        pros::Motor right(6, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
         double gearRatio = 36.0 / 48.0;
-        double wheelDiameter = 2.75;
+        double wheelDiameter = 3.25;
         double dl = left.get_position() / 360 * std::numbers::pi * wheelDiameter * gearRatio;
         double dr = right.get_position() / 360 * std::numbers::pi * wheelDiameter * gearRatio;
         d = (dl + dr) / 2;
+        // TODO: odom?
+        // d = (double)verticalEnc.get_position() / 100 / 360 * std::numbers::pi * 2.0;
         pros::lcd::print(1, "d: %lf", d);
 
         int i = d / trajectory.step;
-        // std::cout << "d: " << d << " i: " << i << "\n";
+        std::uint32_t now = pros::millis();
         if (i >= trajectory.vels.size()) {
             left_mg.move_velocity(0);
             right_mg.move_velocity(0);
         } else {
             double vel = trajectory.vels[i];
             double angularVel = trajectory.angularVels[i];
+            double accel = trajectory.accels[i];
+            double angularAccel = trajectory.angularAccels[i];
+
             double leftVel = vel - angularVel * constraints.trackWidth / 2;
             double rightVel = vel + angularVel * constraints.trackWidth / 2;
+            double leftAccel = accel - angularAccel * constraints.trackWidth / 2;
+            double rightAccel = accel + angularAccel * constraints.trackWidth / 2;
+
             // 600 rpm
-            double leftWheel = leftVel / (std::numbers::pi * wheelDiameter) * 60;
-            double rightWheel = rightVel / (std::numbers::pi * wheelDiameter) * 60;
-            left_mg.move_velocity(leftWheel);
-            right_mg.move_velocity(rightWheel);
-            std::cout << "leftWheel: " << leftWheel << " " << "rightWheel: " << rightWheel << "\n";
+            double leftVelRpm = leftVel / (std::numbers::pi * wheelDiameter) * 60;
+            double rightVelRpm = rightVel / (std::numbers::pi * wheelDiameter) * 60;
+            double leftAccelRpm = leftAccel / (std::numbers::pi * wheelDiameter) * 60;
+            double rightAccelRpm = rightAccel / (std::numbers::pi * wheelDiameter) * 60;
+
+            double kV = 1.145;
+            double kA = 0.153;
+
+            // TODO: Filter vel?
+            leftPidSum += leftPid.update(leftVelRpm - left.get_actual_velocity());
+            rightPidSum += rightPid.update(rightVelRpm - right.get_actual_velocity());
+
+            left_mg.move(kV * leftVelRpm + kA * leftAccelRpm + leftPidSum);
+            right_mg.move(kV * rightVelRpm + kA * rightAccelRpm + rightPidSum);
+
+            log("Left desired", leftVelRpm, "Right desired", rightVelRpm, "Left actual", left.get_actual_velocity(),
+                "Right actual", right.get_actual_velocity());
         }
-        // TODO: decrease update?
+
         // TODO: derivative scaling inaccurate, length of vels is too big
-        pros::delay(10); // Run for 20 ms then update
+        pros::Task::delay_until(&now, 10);
     }
 }

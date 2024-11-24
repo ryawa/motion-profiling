@@ -6,5 +6,7 @@ struct Constraints {
         double maxDec;
         double trackWidth;
         double frictionCoeff;
-        double maxSpeed(double curvature);
+        double constrainedSpeed(double curvature);
+        double constrainedAcc(double curvature);
+        double constrainedDec(double curvature);
 };
