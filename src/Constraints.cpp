@@ -1,7 +1,6 @@
 #include <cmath>
 #include "Constraints.hpp"
 
-// TODO: abs is correct?
 double Constraints::constrainedSpeed(double curvature) {
     double maxTurnSpeed = 2 * maxVel / (2 + std::abs(curvature) * trackWidth);
     if (curvature == 0) { return maxTurnSpeed; }
