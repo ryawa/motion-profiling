@@ -16,4 +16,5 @@ temp.errors
 *.ini
 .d/
 
-**/.venv/
+.venv/
+*.exe
