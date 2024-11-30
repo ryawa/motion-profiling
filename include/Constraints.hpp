@@ -1,12 +1,12 @@
 #pragma once
 
 struct Constraints {
-        double maxVel;
-        double maxAcc;
-        double maxDec;
-        double trackWidth;
-        double frictionCoeff;
-        double constrainedSpeed(double curvature);
-        double constrainedAcc(double curvature);
-        double constrainedDec(double curvature);
+        float maxVel;
+        float maxAcc;
+        float maxDec;
+        float trackWidth;
+        float frictionCoeff;
+        float constrainedSpeed(float curvature);
+        float constrainedAcc(float curvature);
+        float constrainedDec(float curvature);
 };

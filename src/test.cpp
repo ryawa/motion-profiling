@@ -5,6 +5,7 @@
 #include "Constraints.hpp"
 #include "Path.hpp"
 #include "Trajectory.hpp"
+#include "Pose.hpp"
 
 int main() {
     using std::chrono::duration;
@@ -13,36 +14,37 @@ int main() {
 
     QuinticHermite qh {
         {0, 0},
-        {30, 30},
-        {48, 0},
-        {30, 30},
+        {10, 0},
+        {72, 0},
+        {10, 0},
     };
 
     Constraints constraints {100, 500, 500, 12.1875, 1};
     Trajectory trajectory {qh, constraints, 0.1};
 
     auto t1 = high_resolution_clock::now();
-    trajectory.generate(0, 0, 0, 0);
+    trajectory.generate(3, 0, 0, 0);
     auto t2 = high_resolution_clock::now();
-    duration<double, std::milli> dt = t2 - t1;
+    duration<float, std::milli> dt = t2 - t1;
     std::cout << "TIME: " << dt.count() << "\n\n";
 
-    std::cout << trajectory.vels.size() << " " << trajectory.angularVels.size() << " " << trajectory.accels.size()
-              << " " << trajectory.angularAccels.size() << "\n\n";
+    std::cout << trajectory.vels.size() << " " << trajectory.curvatures.size() << " " << trajectory.desiredPoses.size()
+              << "\n\n";
 
     std::cout << "VELS: ";
     for (int i = 0; i < trajectory.vels.size(); i++) { std::cout << trajectory.vels[i] << " "; }
     std::cout << "\n\n";
 
     std::cout << "ANGULARVELS: ";
-    for (int i = 0; i < trajectory.angularVels.size(); i++) { std::cout << trajectory.angularVels[i] << " "; }
+    for (int i = 0; i < trajectory.curvatures.size(); i++) {
+        std::cout << trajectory.vels[i] * trajectory.curvatures[i] << " ";
+    }
     std::cout << "\n\n";
 
-    std::cout << "ACCELS: ";
-    for (int i = 0; i < trajectory.accels.size(); i++) { std::cout << trajectory.accels[i] << " "; }
-    std::cout << "\n\n";
-
-    std::cout << "ANGULARACCELS: ";
-    for (int i = 0; i < trajectory.angularAccels.size(); i++) { std::cout << trajectory.angularAccels[i] << " "; }
+    std::cout << "POSES:\n";
+    for (int i = 0; i < trajectory.desiredPoses.size(); i++) {
+        Pose p = trajectory.desiredPoses[i];
+        std::cout << p.x << ", " << p.y << ", " << p.theta << "\t";
+    }
     std::cout << "\n";
 }
