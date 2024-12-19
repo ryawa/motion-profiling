@@ -2,19 +2,20 @@
 #include <numbers>
 #include <utility>
 #include "Trajectory.hpp"
+#include <iostream>
 
-Trajectory::Trajectory(QuinticHermite path, Constraints constraints, float step)
+Trajectory::Trajectory(Path* path, Constraints constraints, float step)
     : path(path),
       constraints(constraints),
       step(step) {};
 
 // TODO: Iterative generation
 void Trajectory::generate(float startVel, float endVel, float startAngularVel, float endAngularVel) {
-    float arcLengthBound = path.convexHull();
-    int n = (arcLengthBound + step - 1) / step;
-    vels.reserve(n);
-    curvatures.reserve(n);
-    desiredPoses.reserve(n);
+    // float arcLengthBound = path.convexHull();
+    // int n = (arcLengthBound + step - 1) / step;
+    // vels.reserve(n);
+    // curvatures.reserve(n);
+    // desiredPoses.reserve(n);
 
     vels.push_back(startVel);
     if (startVel == 0) {
@@ -25,16 +26,16 @@ void Trajectory::generate(float startVel, float endVel, float startAngularVel, f
     float vel = startVel;
 
     float t = 0;
-    Vec2 d = path.d(t);
-    float prevTheta = fastAtan2(d[1], d[0]);
+    Vec2 d = path->d(t);
+    float prevTheta = std::atan2(d[1], d[0]);
     t += step / std::hypot(d[0], d[1]);
 
     float theta;
     float curvature;
 
-    while (t < 1) {
-        d = path.d(t);
-        theta = fastAtan2(d[1], d[0]);
+    while (t < path->max_t()) {
+        d = path->d(t);
+        theta = std::atan2(d[1], d[0]);
         curvature = constrainAngle90(theta - prevTheta) / step;
 
         vel = std::min(constraints.constrainedSpeed(curvature),
@@ -43,15 +44,15 @@ void Trajectory::generate(float startVel, float endVel, float startAngularVel, f
         vels.push_back(vel);
         curvatures.push_back(curvature);
 
-        Vec2 point = path.point(t);
+        Vec2 point = path->point(t);
         desiredPoses.push_back({point[0], point[1], theta});
         prevTheta = theta;
         t += step / std::hypot(d[0], d[1]);
     }
 
-    d = path.d(1);
-    Vec2 point = path.point(1);
-    theta = fastAtan2(d[1], d[0]);
+    d = path->d(1);
+    Vec2 point = path->point(1);
+    theta = std::atan2(d[1], d[0]);
     Pose end = {point[0], point[1], theta};
     desiredPoses.push_back(end);
     desiredPoses.push_back(end);
@@ -83,18 +84,6 @@ float Trajectory::constrainAngle90(float angle) {
         return constrainAngle180(constrained180 + std::numbers::pi);
     }
     return constrained180;
-}
-
-float Trajectory::fastAtan2(float y, float x) {
-    float xMag = std::abs(x);
-    float yMag = std::abs(y);
-    float a = std::min(xMag, yMag) / std::max(xMag, yMag);
-    float s = a * a;
-    float r = ((-0.0464964749f * s + 0.15931422f) * s - 0.327622764f) * s * a + a;
-    if (yMag > xMag) { r = 1.57079637f - r; }
-    if (x < 0) { r = 3.14159274f - r; }
-    if (y < 0) { r = -r; }
-    return r;
 }
 
 std::pair<float, float> Trajectory::getWheelVelocities(int i, float wheelDiameter) {
