@@ -1,5 +1,46 @@
 #include <cmath>
 #include "Path.hpp"
+#include "Eigen/src/Core/Matrix.h"
+
+CubicBezier::CubicBezier(Vec2 p0, Vec2 v0, Vec2 p1, Vec2 v1) {
+    points << p0, v0, p1, v1;
+    pointCoeffs = points * Eigen::Matrix<float, 4, 4> {
+                               {-1, 3, -3, 1},
+                               {3, -6, 3, 0},
+                               {-3, 3, 0, 0},
+                               {1, 0, 0, 0},
+                           };
+    dCoeffs = points * Eigen::Matrix<float, 4, 3> {
+                           {-3, 6, -3},
+                           {9, -12, 3},
+                           {-9, 6, 0},
+                           {3, 0, 0},
+                       };
+    d2Coeffs = points * Eigen::Matrix<float, 4, 2> {
+                            {-6, 6},
+                            {18, -12},
+                            {-18, 6},
+                            {6, 0},
+                        };
+}
+
+Vec2 CubicBezier::point(float t) {
+    Eigen::Vector<float, 4> T;
+    T << t * t * t, t * t, t, 1;
+    return pointCoeffs * T;
+}
+
+Vec2 CubicBezier::d(float t) {
+    Eigen::Vector<float, 3> T;
+    T << t * t, t, 1;
+    return dCoeffs * T;
+}
+
+Vec2 CubicBezier::d2(float t) {
+    Eigen::Vector<float, 2> T;
+    T << t, 1;
+    return d2Coeffs * T;
+}
 
 QuinticHermite::QuinticHermite(Vec2 p0, Vec2 v0, Vec2 a0, Vec2 p1, Vec2 v1, Vec2 a1) {
     points << p0, v0, a0, p1, v1, a1;
@@ -49,4 +90,31 @@ float QuinticHermite::convexHull() {
     Vec2 c = points.col(3) - q2;
     Vec2 d = points.col(0) - points.col(3);
     return a.norm() + b.norm() + c.norm() + d.norm();
+}
+
+QuinticHermiteSpline::QuinticHermiteSpline(std::vector<QuinticHermite> segments)
+    : segments(segments) {};
+
+Vec2 QuinticHermiteSpline::point(float t) {
+    int num = std::ceil(t) - 1;
+    if (num < 0) { num = 0; }
+    float frac = t - num;
+    QuinticHermite segment = segments[num];
+    return segment.point(frac);
+}
+
+Vec2 QuinticHermiteSpline::d(float t) {
+    int num = std::ceil(t) - 1;
+    if (num < 0) { num = 0; }
+    float frac = t - num;
+    QuinticHermite segment = segments[num];
+    return segment.d(frac);
+}
+
+Vec2 QuinticHermiteSpline::d2(float t) {
+    int num = std::ceil(t) - 1;
+    if (num < 0) { num = 0; }
+    float frac = t - num;
+    QuinticHermite segment = segments[num];
+    return segment.d2(frac);
 }
