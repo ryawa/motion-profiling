@@ -1,32 +1,29 @@
 #include <chrono>
 #include <ratio>
 #include <iostream>
+#include <vector>
 #include "Eigen/Dense"
 #include "Constraints.hpp"
 #include "Path.hpp"
 #include "Trajectory.hpp"
-#include "Pose.hpp"
 
 int main() {
     using std::chrono::duration;
     using std::chrono::duration_cast;
     using std::chrono::high_resolution_clock;
 
-    QuinticHermite qh {
-        {0, 0},
-        {10, 0},
-        {72, 0},
-        {10, 0},
+    Path* path = new QuinticHermiteSpline {
+        {{{0, 0}, {10, 0}, {72, 0}, {10, 0}}, {{72, 0}, {10, 0}, {144, 72}, {0, 72}}},
     };
 
     Constraints constraints {100, 500, 500, 12.1875, 1};
-    Trajectory trajectory {qh, constraints, 0.1};
+    Trajectory trajectory {path, constraints, 0.1};
 
     auto t1 = high_resolution_clock::now();
     trajectory.generate(3, 0, 0, 0);
     auto t2 = high_resolution_clock::now();
-    duration<float, std::milli> dt = t2 - t1;
-    std::cout << "TIME: " << dt.count() << "\n\n";
+    duration<float, std::milli> dtime = t2 - t1;
+    std::cout << "TIME: " << dtime.count() << "\n\n";
 
     std::cout << trajectory.vels.size() << " " << trajectory.curvatures.size() << " " << trajectory.desiredPoses.size()
               << "\n\n";
