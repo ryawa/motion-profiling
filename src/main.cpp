@@ -5,7 +5,7 @@
 #include <ratio>
 #include <iostream>
 #include "main.h"
-#include "lemlib/api.hpp"
+#include "lemlib/api.hpp" // IWYU pragma: keep
 #include "Eigen/Dense"
 #include "Constraints.hpp"
 #include "Path.hpp"
