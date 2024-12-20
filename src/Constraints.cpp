@@ -4,7 +4,7 @@
 float Constraints::constrainedSpeed(float curvature) {
     float maxTurnSpeed = 2 * maxVel / (2 + std::abs(curvature) * trackWidth);
     if (curvature == 0) { return maxTurnSpeed; }
-    float maxSlipSpeed = std::sqrt(frictionCoeff / std::abs(curvature) * 9.81);
+    float maxSlipSpeed = std::sqrt(frictionCoeff / std::abs(curvature) * 9.81 * 39.37);
     return std::min(maxTurnSpeed, maxSlipSpeed);
 }
 

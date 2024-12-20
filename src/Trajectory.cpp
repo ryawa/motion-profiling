@@ -1,8 +1,6 @@
 #include <cmath>
 #include <numbers>
-#include <utility>
 #include "Trajectory.hpp"
-#include <iostream>
 
 Trajectory::Trajectory(Path* path, Constraints constraints, float step)
     : path(path),
@@ -84,15 +82,4 @@ float Trajectory::constrainAngle90(float angle) {
         return constrainAngle180(constrained180 + std::numbers::pi);
     }
     return constrained180;
-}
-
-std::pair<float, float> Trajectory::getWheelVelocities(int i, float wheelDiameter) {
-    float vel = vels[i];
-    float angularVel = vels[i] * curvatures[i];
-    float leftVel = vel - angularVel * constraints.trackWidth / 2;
-    float rightVel = vel + angularVel * constraints.trackWidth / 2;
-
-    float leftVelRpm = leftVel / (std::numbers::pi * wheelDiameter) * 60;
-    float rightVelRpm = rightVel / (std::numbers::pi * wheelDiameter) * 60;
-    return std::make_pair(leftVelRpm, rightVelRpm);
 }

@@ -1,9 +1,9 @@
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <numbers>
 #include <ratio>
 #include <iostream>
-#include <utility>
 #include "main.h"
 #include "lemlib/api.hpp"
 #include "Eigen/Dense"
@@ -28,6 +28,18 @@ template <typename... Args> void log(const Args&... args) {
     std::cout << "VEX_DASHBOARD_END" << std::flush;
 }
 
+const float trackWidth = 12.375;
+const float scrubFactor = 2;
+const float gearRatio = 36.0 / 48.0;
+const float wheelDiameter = 3.25;
+
+const float kS = 10;
+const float kV = 0.18;
+const float kA = 3;
+
+const float b = 2.0;
+const float zeta = 0.7;
+
 pros::MotorGroup leftMotors({-19, -18, -16}, pros::v5::MotorGears::blue);
 pros::MotorGroup rightMotors({6, 10, 2}, pros::v5::MotorGears::blue);
 pros::Imu imu(11);
@@ -36,7 +48,6 @@ pros::Rotation verticalEnc(-15);
 // TODO: tune offsets
 lemlib::TrackingWheel horizTrackingWheel(&horizontalEnc, 2.0, 1.125);
 lemlib::TrackingWheel vertTrackingWheel(&verticalEnc, 2.0, 1.25);
-const float trackWidth = 12.1875;
 
 lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, trackWidth, lemlib::Omniwheel::NEW_325, 450, 2);
 
@@ -46,11 +57,6 @@ lemlib::ControllerSettings linearController(8.4, 0, 65, 0, 1, 250, 1, 250, 9);
 lemlib::ControllerSettings angularController(2, 0, 13, 0, 0, 0, 0, 0, 0);
 
 lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors);
-
-const float gearRatio = 36.0 / 48.0;
-const float wheelDiameter = 3.25;
-const float b = 2.0;
-const float zeta = 0.7;
 
 void initialize() {
     pros::lcd::initialize();
@@ -78,12 +84,12 @@ void opcontrol() {
     using std::chrono::duration_cast;
     using std::chrono::high_resolution_clock;
 
-    // QuinticHermite qh {
-    //     {0, 0},
-    //     {30, 0},
-    //     {72, 24},
-    //     {0, 72},
-    // };
+    Path* qh = new QuinticHermite {
+        {0, 0},
+        {30, 0},
+        {72, 72},
+        {0, 200},
+    };
 
     // QuinticHermite qh {
     //     {0, 0},
@@ -92,16 +98,15 @@ void opcontrol() {
     //     {30, 30},
     // };
 
-    Path* qh = new QuinticHermite {
-        {0, 0},
-        {10, 0},
-        {72, 0},
-        {10, 0},
-    };
+    // Path* qh = new QuinticHermite {
+    //     {0, 0},
+    //     {10, 0},
+    //     {72, 0},
+    //     {10, 0},
+    // };
 
-    // TODO: friction
-    // Constraints constraints {100, 150, 100, 12.375, 1};
-    Constraints constraints {75, 150, 150, 12.375, 9999};
+    // TODO: friction, speed up vel/acc
+    Constraints constraints {75, 100, 50, trackWidth, 0.02};
     Trajectory trajectory {qh, constraints, 0.1};
 
     auto t1 = high_resolution_clock::now();
@@ -112,10 +117,9 @@ void opcontrol() {
 
     float d = 0;
 
-    // lemlib::PID leftPid(0.05, 0, 0.1);
-    // lemlib::PID rightPid(0.05, 0, 0.1);
-    lemlib::PID leftPid(0, 0, 0);
-    lemlib::PID rightPid(0, 0, 0);
+    // 0.05, 0.1
+    lemlib::PID leftPid(0.07, 0, 0.1);
+    lemlib::PID rightPid(0.07, 0, 0.1);
     float leftPidSum = 0.0;
     float rightPidSum = 0.0;
 
@@ -126,12 +130,11 @@ void opcontrol() {
 
     float prevLeftVel = 0;
     float prevRightVel = 0;
+    float prevLeftError = 0;
+    float prevRightError = 0;
 
     while (true) {
-        // float dl = left.get_position() / 360 * std::numbers::pi * wheelDiameter * gearRatio;
-        // float dr = right.get_position() / 360 * std::numbers::pi * wheelDiameter * gearRatio;
-        // d = (dl + dr) / 2;
-        // why less than y, euler integrate?
+        // Integrate instead?
         d = (float)verticalEnc.get_position() / 100 / 360 * std::numbers::pi * 2.0;
         pros::lcd::print(1, "d: %lf", d);
 
@@ -156,51 +159,45 @@ void opcontrol() {
         float k = 2 * zeta * std::sqrt(angularVel * angularVel + b * vel * vel);
         float newVel = vel * std::cos(eTheta) + k * eX;
         float newAngularVel = angularVel + k * eTheta + (b * vel * std::sin(eTheta) * eY) / eTheta;
-        // vel = newVel;
-        // angularVel = newAngularVel;
+        vel = newVel;
+        angularVel = newAngularVel;
 
         vel *= 39.3701;
 
-        float leftVel = vel - angularVel * constraints.trackWidth / 2;
-        float rightVel = vel + angularVel * constraints.trackWidth / 2;
+        float leftVel = vel - angularVel * trackWidth / 2 * scrubFactor;
+        float rightVel = vel + angularVel * trackWidth / 2 * scrubFactor;
 
         float leftVelRpm = leftVel / (std::numbers::pi * wheelDiameter) * 60;
         float rightVelRpm = rightVel / (std::numbers::pi * wheelDiameter) * 60;
-        std::pair<float, float> nextVels;
-        if (i + 1 >= trajectory.vels.size()) {
-            nextVels = std::make_pair(0, 0);
-        } else {
-            nextVels = trajectory.getWheelVelocities(i + 1, wheelDiameter);
-        }
-        // OR target - prev_target
-        // (https://discord.com/channels/1094397185141002340/1094397185732390914/1316913821859708999)
         float leftAccel = leftVelRpm - prevLeftVel;
         float rightAccel = rightVelRpm - prevRightVel;
         prevLeftVel = leftVelRpm;
         prevRightVel = rightVelRpm;
 
-        // kS, kP, turning scrub
-        // Timing, trapezoidal sums, distance based on nearest point, euler integration
-        const float kS = 10;
-        const float kV = 0.208;
-        const float kA = 2;
+        // Timing, trapezoidal sums, distance based on nearest point
 
         // TODO: Filter vel?
-        leftPidSum += leftPid.update(leftVelRpm - left.get_actual_velocity());
-        rightPidSum += rightPid.update(rightVelRpm - right.get_actual_velocity());
+        float leftError = leftVelRpm - left.get_actual_velocity();
+        float rightError = rightVelRpm - right.get_actual_velocity();
+        leftPidSum += leftPid.update(leftError);
+        rightPidSum += rightPid.update(rightError);
+        if (std::signbit(leftError) != std::signbit(prevLeftError)) { leftPidSum = 0; }
+        if (std::signbit(rightError) != std::signbit(prevRightError)) { rightPidSum = 0; }
+        prevLeftError = leftError;
+        prevRightError = rightError;
 
         leftMotors.move(kS * sign(leftVelRpm) + kV * leftVelRpm + kA * leftAccel + leftPidSum);
         rightMotors.move(kS * sign(rightVelRpm) + kV * rightVelRpm + kA * rightAccel + rightPidSum);
+
         // leftMotors.move_velocity(leftVelRpm);
         // rightMotors.move_velocity(rightVelRpm);
 
         pros::lcd::print(5, "%lf %lf", leftVelRpm, rightVelRpm);
 
-        log("Left desired", leftVelRpm, "Right desired", rightVelRpm, "Left actual", left.get_actual_velocity(),
-            "Right actual", right.get_actual_velocity());
+        // log("Left desired", leftVelRpm, "Right desired", rightVelRpm, "Left actual", left.get_actual_velocity(),
+        //     "Right actual", right.get_actual_velocity());
         // std::cout << "(" << chassis.getPose().x << "," << chassis.getPose().y << "),";
 
-        // TODO: derivative scaling inaccurate, length of vels is too big
         pros::Task::delay_until(&now, 10);
     }
 
