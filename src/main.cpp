@@ -158,6 +158,7 @@ void opcontrol() {
 
         float k = 2 * zeta * std::sqrt(angularVel * angularVel + b * vel * vel);
         float newVel = vel * std::cos(eTheta) + k * eX;
+        // TODO: Taylor approx. near 0? (1-x^2/6)
         float newAngularVel = angularVel + k * eTheta + (b * vel * std::sin(eTheta) * eY) / eTheta;
         vel = newVel;
         angularVel = newAngularVel;
@@ -176,7 +177,7 @@ void opcontrol() {
 
         // Timing, trapezoidal sums, distance based on nearest point
 
-        // TODO: Filter vel?
+        // TODO: Filter vel? (https://sylvie.fyi/sylib/docs/db/d8e/md_module_writeups__velocity__estimation.html)
         float leftError = leftVelRpm - left.get_actual_velocity();
         float rightError = rightVelRpm - right.get_actual_velocity();
         leftPidSum += leftPid.update(leftError);

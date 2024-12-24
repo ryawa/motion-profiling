@@ -42,25 +42,14 @@ int main() {
     trajectory.generate(3, 0, 0, 0);
     auto t2 = high_resolution_clock::now();
     duration<float, std::milli> dtime = t2 - t1;
-    std::cout << "TIME: " << dtime.count() << "\n\n";
+    // std::cout << "TIME: " << dtime.count() << "\n\n";
 
-    std::cout << trajectory.vels.size() << " " << trajectory.curvatures.size() << " " << trajectory.desiredPoses.size()
-              << "\n\n";
-
-    std::cout << "VELS: ";
-    for (int i = 0; i < trajectory.vels.size(); i++) { std::cout << trajectory.vels[i] << " "; }
-    std::cout << "\n\n";
-
-    std::cout << "ANGULARVELS: ";
-    for (int i = 0; i < trajectory.curvatures.size(); i++) {
-        std::cout << trajectory.vels[i] * trajectory.curvatures[i] << " ";
+    for (int i = 0; i < trajectory.vels.size(); i++) {
+        std::cout << trajectory.vels[i] << " ";
+        std::cout << trajectory.curvatures[i] << " ";
+        std::cout << trajectory.desiredPoses[i].x << " ";
+        std::cout << trajectory.desiredPoses[i].y << " ";
+        std::cout << trajectory.desiredPoses[i].theta << " ";
+        std::cout << "\n";
     }
-    std::cout << "\n\n";
-
-    std::cout << "POSES:\n";
-    for (int i = 0; i < trajectory.desiredPoses.size(); i++) {
-        Pose p = trajectory.desiredPoses[i];
-        std::cout << p.x << ", " << p.y << ", " << p.theta << "\t";
-    }
-    std::cout << "\n";
 }
