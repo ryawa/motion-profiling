@@ -11,6 +11,9 @@
 #include "Path.hpp"
 #include "Trajectory.hpp"
 #include "Pose.hpp"
+#include "lemlib/chassis/trackingWheel.hpp"
+
+ASSET(path_txt);
 
 template <typename T> void log_helper(const T& value) { std::cout << value; }
 
@@ -28,28 +31,27 @@ template <typename... Args> void log(const Args&... args) {
     std::cout << "VEX_DASHBOARD_END" << std::flush;
 }
 
-const float trackWidth = 12.375;
-const float scrubFactor = 2;
-const float gearRatio = 36.0 / 48.0;
-const float wheelDiameter = 3.25;
+const float trackWidth = 10.8125;
+const float scrubFactor = 1.25;
+const float wheelDiameter = 2.75;
 
-const float kS = 10;
-const float kV = 0.18;
-const float kA = 3;
+// const float kS = 10;
+// const float kV = 0.18;
+// const float kA = 3;
 
 const float b = 2.0;
 const float zeta = 0.7;
 
-pros::MotorGroup leftMotors({-19, -18, -16}, pros::v5::MotorGears::blue);
-pros::MotorGroup rightMotors({6, 10, 2}, pros::v5::MotorGears::blue);
-pros::Imu imu(11);
-pros::Rotation horizontalEnc(-17);
-pros::Rotation verticalEnc(-15);
+pros::MotorGroup leftMotors({-4, -6, -11}, pros::v5::MotorGears::blue);
+pros::MotorGroup rightMotors({5, 7, 13}, pros::v5::MotorGears::blue);
+pros::Imu imu(20);
+pros::Rotation horizontalEnc(3);
+pros::Rotation verticalEnc(2);
 // TODO: tune offsets
-lemlib::TrackingWheel horizTrackingWheel(&horizontalEnc, 2.0, 1.125);
-lemlib::TrackingWheel vertTrackingWheel(&verticalEnc, 2.0, 1.25);
+lemlib::TrackingWheel horizTrackingWheel(&horizontalEnc, 2.0, 0.375);
+lemlib::TrackingWheel vertTrackingWheel(&verticalEnc, 2.0, -0.84375);
 
-lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, trackWidth, lemlib::Omniwheel::NEW_325, 450, 2);
+lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, trackWidth, lemlib::Omniwheel::NEW_275, 450, 2);
 
 lemlib::OdomSensors sensors(&vertTrackingWheel, nullptr, &horizTrackingWheel, nullptr, &imu);
 
@@ -88,7 +90,7 @@ void opcontrol() {
         {0, 0},
         {30, 0},
         {72, 72},
-        {0, 200},
+        {0, 180},
     };
 
     // QuinticHermite qh {
@@ -114,6 +116,7 @@ void opcontrol() {
     auto t2 = high_resolution_clock::now();
     duration<float, std::milli> deltat = t2 - t1;
     std::cout << "TIME: " << deltat.count() << "\n\n";
+    std::cout << path_txt.buf;
 
     float d = 0;
 
@@ -125,8 +128,8 @@ void opcontrol() {
 
     std::cout << std::fixed << "\033[1mCopy this:\033[0m\n[";
 
-    pros::Motor left(-19, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
-    pros::Motor right(6, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
+    // pros::Motor left(-19, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
+    // pros::Motor right(6, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
 
     float prevLeftVel = 0;
     float prevRightVel = 0;
@@ -178,20 +181,20 @@ void opcontrol() {
         // Timing, trapezoidal sums, distance based on nearest point
 
         // TODO: Filter vel? (https://sylvie.fyi/sylib/docs/db/d8e/md_module_writeups__velocity__estimation.html)
-        float leftError = leftVelRpm - left.get_actual_velocity();
-        float rightError = rightVelRpm - right.get_actual_velocity();
-        leftPidSum += leftPid.update(leftError);
-        rightPidSum += rightPid.update(rightError);
-        if (std::signbit(leftError) != std::signbit(prevLeftError)) { leftPidSum = 0; }
-        if (std::signbit(rightError) != std::signbit(prevRightError)) { rightPidSum = 0; }
-        prevLeftError = leftError;
-        prevRightError = rightError;
+        // float leftError = leftVelRpm - left.get_actual_velocity();
+        // float rightError = rightVelRpm - right.get_actual_velocity();
+        // leftPidSum += leftPid.update(leftError);
+        // rightPidSum += rightPid.update(rightError);
+        // if (std::signbit(leftError) != std::signbit(prevLeftError)) { leftPidSum = 0; }
+        // if (std::signbit(rightError) != std::signbit(prevRightError)) { rightPidSum = 0; }
+        // prevLeftError = leftError;
+        // prevRightError = rightError;
 
-        leftMotors.move(kS * sign(leftVelRpm) + kV * leftVelRpm + kA * leftAccel + leftPidSum);
-        rightMotors.move(kS * sign(rightVelRpm) + kV * rightVelRpm + kA * rightAccel + rightPidSum);
+        // leftMotors.move(kS * sign(leftVelRpm) + kV * leftVelRpm + kA * leftAccel + leftPidSum);
+        // rightMotors.move(kS * sign(rightVelRpm) + kV * rightVelRpm + kA * rightAccel + rightPidSum);
 
-        // leftMotors.move_velocity(leftVelRpm);
-        // rightMotors.move_velocity(rightVelRpm);
+        leftMotors.move_velocity(leftVelRpm);
+        rightMotors.move_velocity(rightVelRpm);
 
         pros::lcd::print(5, "%lf %lf", leftVelRpm, rightVelRpm);
 

@@ -14,18 +14,6 @@ int main() {
 
     Path* path = new QuinticHermiteSpline {
         {
-            // {
-            //     {0, 0},
-            //     {30, 0},
-            //     {63, 82},
-            //     {0, 216},
-            // },
-            // {
-            //     {0, 0},
-            //     {30, 0},
-            //     {72, 72},
-            //     {0, 216},
-            // },
             {
                 {0, 0},
                 {30, 0},
@@ -35,7 +23,7 @@ int main() {
         },
     };
 
-    Constraints constraints {100, 500, 500, 12.1875, 1};
+    Constraints constraints {75, 100, 50, 10.8125, 0.02};
     Trajectory trajectory {path, constraints, 0.1};
 
     auto t1 = high_resolution_clock::now();

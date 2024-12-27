@@ -13,4 +13,4 @@ bin/gen.exe: $(patsubst %, bin/%.o, $(GENFILES)) | bin/
 	g++ $(GENFLAGS) -o $@ $^
 
 gen: bin/gen.exe
-	./bin/gen.exe > path.txt
+	./bin/gen.exe > static/path.txt
