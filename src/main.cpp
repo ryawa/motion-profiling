@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <memory>
 #include <numbers>
 #include <ratio>
 #include <iostream>
@@ -12,6 +13,7 @@
 #include "Trajectory.hpp"
 #include "Pose.hpp"
 #include "lemlib/chassis/trackingWheel.hpp"
+#include "Profiler.hpp"
 
 ASSET(path_txt);
 
@@ -60,6 +62,8 @@ lemlib::ControllerSettings angularController(2, 0, 13, 0, 0, 0, 0, 0, 0);
 
 lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors);
 
+Profiler profiler(&chassis, &drivetrain, 2.0, 0.7, 1.25);
+
 void initialize() {
     pros::lcd::initialize();
     chassis.calibrate();
@@ -82,128 +86,131 @@ double sign(double x) {
 }
 
 void opcontrol() {
-    using std::chrono::duration;
-    using std::chrono::duration_cast;
-    using std::chrono::high_resolution_clock;
+    profiler.follow(path_txt);
+    profiler.waitUntilDone();
+    chassis.turnToHeading(0, 1000);
 
-    Path* qh = new QuinticHermite {
-        {0, 0},
-        {30, 0},
-        {72, 72},
-        {0, 180},
-    };
-
-    // QuinticHermite qh {
-    //     {0, 0},
-    //     {30, 30},
-    //     {48, 0},
-    //     {30, 30},
-    // };
+    // using std::chrono::duration;
+    // using std::chrono::duration_cast;
+    // using std::chrono::high_resolution_clock;
 
     // Path* qh = new QuinticHermite {
     //     {0, 0},
-    //     {10, 0},
-    //     {72, 0},
-    //     {10, 0},
+    //     {30, 0},
+    //     {72, 72},
+    //     {0, 180},
     // };
 
-    // TODO: friction, speed up vel/acc
-    Constraints constraints {75, 100, 50, trackWidth, 0.02};
-    Trajectory trajectory {qh, constraints, 0.1};
+    // // QuinticHermite qh {
+    // //     {0, 0},
+    // //     {30, 30},
+    // //     {48, 0},
+    // //     {30, 30},
+    // // };
 
-    auto t1 = high_resolution_clock::now();
-    trajectory.generate(3, 0, 0, 0);
-    auto t2 = high_resolution_clock::now();
-    duration<float, std::milli> deltat = t2 - t1;
-    std::cout << "TIME: " << deltat.count() << "\n\n";
-    std::cout << path_txt.buf;
+    // // Path* qh = new QuinticHermite {
+    // //     {0, 0},
+    // //     {10, 0},
+    // //     {72, 0},
+    // //     {10, 0},
+    // // };
 
-    float d = 0;
+    // // TODO: friction, speed up vel/acc
+    // Constraints constraints {75, 100, 50, trackWidth, 0.02};
+    // Trajectory trajectory {qh, constraints, 0.1};
 
-    // 0.05, 0.1
-    lemlib::PID leftPid(0.07, 0, 0.1);
-    lemlib::PID rightPid(0.07, 0, 0.1);
-    float leftPidSum = 0.0;
-    float rightPidSum = 0.0;
+    // auto t1 = high_resolution_clock::now();
+    // trajectory.generate(3, 0, 0, 0);
+    // auto t2 = high_resolution_clock::now();
+    // duration<float, std::milli> deltat = t2 - t1;
+    // std::cout << "TIME: " << deltat.count() << "\n\n";
+    // std::cout << path_txt.buf;
 
-    std::cout << std::fixed << "\033[1mCopy this:\033[0m\n[";
+    // float d = 0;
 
-    // pros::Motor left(-19, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
-    // pros::Motor right(6, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
+    // // 0.05, 0.1
+    // lemlib::PID leftPid(0.07, 0, 0.1);
+    // lemlib::PID rightPid(0.07, 0, 0.1);
+    // float leftPidSum = 0.0;
+    // float rightPidSum = 0.0;
 
-    float prevLeftVel = 0;
-    float prevRightVel = 0;
-    float prevLeftError = 0;
-    float prevRightError = 0;
+    // std::cout << std::fixed << "\033[1mCopy this:\033[0m\n[";
 
-    while (true) {
-        // Integrate instead?
-        d = (float)verticalEnc.get_position() / 100 / 360 * std::numbers::pi * 2.0;
-        pros::lcd::print(1, "d: %lf", d);
+    // // pros::Motor left(-19, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
+    // // pros::Motor right(6, pros::v5::MotorGears::blue, pros::v5::MotorEncoderUnits::degrees);
 
-        unsigned int i = d / trajectory.step;
-        // if (i >= trajectory.vels.size()) { break; }
-        i = std::min(i, trajectory.vels.size() - 1);
-        std::uint32_t now = pros::millis();
-        float vel = trajectory.vels[i];
-        float angularVel = trajectory.vels[i] * trajectory.curvatures[i];
-        Pose desiredPose = trajectory.desiredPoses[i];
-        lemlib::Pose pose = chassis.getPose(true, true);
-        float eX = (desiredPose.x - pose.x) * std::cos(pose.theta) + (desiredPose.y - pose.y) * std::sin(pose.theta);
-        float eY = -(desiredPose.x - pose.x) * std::sin(pose.theta) + (desiredPose.y - pose.y) * std::cos(pose.theta);
-        float eTheta = desiredPose.theta - pose.theta;
-        pros::lcd::print(3, "%lf, %lf, %lf", pose.x, pose.y, pose.theta);
-        pros::lcd::print(4, "%lf, %lf, %lf", eX, eY, eTheta);
+    // float prevLeftVel = 0;
+    // float prevRightVel = 0;
+    // float prevLeftError = 0;
+    // float prevRightError = 0;
 
-        vel *= 0.0254;
-        eX *= 0.0254;
-        eY *= 0.0254;
+    // while (true) {
+    //     // Integrate instead?
+    //     d = (float)verticalEnc.get_position() / 100 / 360 * std::numbers::pi * 2.0;
+    //     pros::lcd::print(1, "d: %lf", d);
 
-        float k = 2 * zeta * std::sqrt(angularVel * angularVel + b * vel * vel);
-        float newVel = vel * std::cos(eTheta) + k * eX;
-        // TODO: Taylor approx. near 0? (1-x^2/6)
-        float newAngularVel = angularVel + k * eTheta + (b * vel * std::sin(eTheta) * eY) / eTheta;
-        vel = newVel;
-        angularVel = newAngularVel;
+    //     unsigned int i = d / trajectory.step;
+    //     // if (i >= trajectory.vels.size()) { break; }
+    //     i = std::min(i, trajectory.vels.size() - 1);
+    //     std::uint32_t now = pros::millis();
+    //     float vel = trajectory.vels[i];
+    //     float angularVel = trajectory.vels[i] * trajectory.curvatures[i];
+    //     Pose desiredPose = trajectory.desiredPoses[i];
+    //     lemlib::Pose pose = chassis.getPose(true, true);
+    //     float eX = (desiredPose.x - pose.x) * std::cos(pose.theta) + (desiredPose.y - pose.y) * std::sin(pose.theta);
+    //     float eY = -(desiredPose.x - pose.x) * std::sin(pose.theta) + (desiredPose.y - pose.y) *
+    //     std::cos(pose.theta); float eTheta = desiredPose.theta - pose.theta; pros::lcd::print(3, "%lf, %lf, %lf",
+    //     pose.x, pose.y, pose.theta); pros::lcd::print(4, "%lf, %lf, %lf", eX, eY, eTheta);
 
-        vel *= 39.3701;
+    //     vel *= 0.0254;
+    //     eX *= 0.0254;
+    //     eY *= 0.0254;
 
-        float leftVel = vel - angularVel * trackWidth / 2 * scrubFactor;
-        float rightVel = vel + angularVel * trackWidth / 2 * scrubFactor;
+    //     float k = 2 * zeta * std::sqrt(angularVel * angularVel + b * vel * vel);
+    //     float newVel = vel * std::cos(eTheta) + k * eX;
+    //     // TODO: Taylor approx. near 0? (1-x^2/6)
+    //     float newAngularVel = angularVel + k * eTheta + (b * vel * std::sin(eTheta) * eY) / eTheta;
+    //     vel = newVel;
+    //     angularVel = newAngularVel;
 
-        float leftVelRpm = leftVel / (std::numbers::pi * wheelDiameter) * 60;
-        float rightVelRpm = rightVel / (std::numbers::pi * wheelDiameter) * 60;
-        float leftAccel = leftVelRpm - prevLeftVel;
-        float rightAccel = rightVelRpm - prevRightVel;
-        prevLeftVel = leftVelRpm;
-        prevRightVel = rightVelRpm;
+    //     vel *= 39.3701;
 
-        // Timing, trapezoidal sums, distance based on nearest point
+    //     float leftVel = vel - angularVel * trackWidth / 2 * scrubFactor;
+    //     float rightVel = vel + angularVel * trackWidth / 2 * scrubFactor;
 
-        // TODO: Filter vel? (https://sylvie.fyi/sylib/docs/db/d8e/md_module_writeups__velocity__estimation.html)
-        // float leftError = leftVelRpm - left.get_actual_velocity();
-        // float rightError = rightVelRpm - right.get_actual_velocity();
-        // leftPidSum += leftPid.update(leftError);
-        // rightPidSum += rightPid.update(rightError);
-        // if (std::signbit(leftError) != std::signbit(prevLeftError)) { leftPidSum = 0; }
-        // if (std::signbit(rightError) != std::signbit(prevRightError)) { rightPidSum = 0; }
-        // prevLeftError = leftError;
-        // prevRightError = rightError;
+    //     float leftVelRpm = leftVel / (std::numbers::pi * wheelDiameter) * 60;
+    //     float rightVelRpm = rightVel / (std::numbers::pi * wheelDiameter) * 60;
+    //     float leftAccel = leftVelRpm - prevLeftVel;
+    //     float rightAccel = rightVelRpm - prevRightVel;
+    //     prevLeftVel = leftVelRpm;
+    //     prevRightVel = rightVelRpm;
 
-        // leftMotors.move(kS * sign(leftVelRpm) + kV * leftVelRpm + kA * leftAccel + leftPidSum);
-        // rightMotors.move(kS * sign(rightVelRpm) + kV * rightVelRpm + kA * rightAccel + rightPidSum);
+    //     // Timing, trapezoidal sums, distance based on nearest point
 
-        leftMotors.move_velocity(leftVelRpm);
-        rightMotors.move_velocity(rightVelRpm);
+    //     // TODO: Filter vel? (https://sylvie.fyi/sylib/docs/db/d8e/md_module_writeups__velocity__estimation.html)
+    //     // float leftError = leftVelRpm - left.get_actual_velocity();
+    //     // float rightError = rightVelRpm - right.get_actual_velocity();
+    //     // leftPidSum += leftPid.update(leftError);
+    //     // rightPidSum += rightPid.update(rightError);
+    //     // if (std::signbit(leftError) != std::signbit(prevLeftError)) { leftPidSum = 0; }
+    //     // if (std::signbit(rightError) != std::signbit(prevRightError)) { rightPidSum = 0; }
+    //     // prevLeftError = leftError;
+    //     // prevRightError = rightError;
 
-        pros::lcd::print(5, "%lf %lf", leftVelRpm, rightVelRpm);
+    //     // leftMotors.move(kS * sign(leftVelRpm) + kV * leftVelRpm + kA * leftAccel + leftPidSum);
+    //     // rightMotors.move(kS * sign(rightVelRpm) + kV * rightVelRpm + kA * rightAccel + rightPidSum);
 
-        // log("Left desired", leftVelRpm, "Right desired", rightVelRpm, "Left actual", left.get_actual_velocity(),
-        //     "Right actual", right.get_actual_velocity());
-        // std::cout << "(" << chassis.getPose().x << "," << chassis.getPose().y << "),";
+    //     leftMotors.move_velocity(leftVelRpm);
+    //     rightMotors.move_velocity(rightVelRpm);
 
-        pros::Task::delay_until(&now, 10);
-    }
+    //     pros::lcd::print(5, "%lf %lf", leftVelRpm, rightVelRpm);
 
-    std::cout << "\b]" << std::endl;
+    //     // log("Left desired", leftVelRpm, "Right desired", rightVelRpm, "Left actual", left.get_actual_velocity(),
+    //     //     "Right actual", right.get_actual_velocity());
+    //     // std::cout << "(" << chassis.getPose().x << "," << chassis.getPose().y << "),";
+
+    //     pros::Task::delay_until(&now, 10);
+    // }
+
+    // std::cout << "\b]" << std::endl;
 }

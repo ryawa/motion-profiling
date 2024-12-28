@@ -17,8 +17,8 @@ int main() {
             {
                 {0, 0},
                 {30, 0},
-                {72, -24},
-                {0, -72},
+                {72, 72},
+                {0, 180},
             },
         },
     };
@@ -31,6 +31,8 @@ int main() {
     auto t2 = high_resolution_clock::now();
     duration<float, std::milli> dtime = t2 - t1;
     // std::cout << "TIME: " << dtime.count() << "\n\n";
+
+    std::cout << trajectory.step << "\n";
 
     for (int i = 0; i < trajectory.vels.size(); i++) {
         std::cout << trajectory.vels[i] << " ";
